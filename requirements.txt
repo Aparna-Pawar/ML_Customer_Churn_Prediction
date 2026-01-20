@@ -3,10 +3,9 @@ numpy
 matplotlib
 seaborn
 scikit-learn
-<<<<<<< HEAD
 joblib
-=======
 ipykernel
 joblib
 streamlit
->>>>>>> 0224915 (Modified files)
+mlflow
+boto3
