@@ -1,77 +1,48 @@
-
-##customer churn frontend
 from fastapi import FastAPI
 from pydantic import BaseModel
+import joblib
 import pandas as pd
-import mlflow
-import mlflow.sklearn
-import pickle
-from mlflow.tracking import MlflowClient
 
-# ===============================
-# CONFIG
-# ===============================
-RUN_ID = "df0b39914755441da96e5f5bf48c268c"
-MODEL_URI = f"runs:/{RUN_ID}/model"
+# Load model and preprocessor
+model = joblib.load("model/churn_model.pkl")
+preprocessor = joblib.load("model/preprocessor.pkl")
 
 app = FastAPI(title="Customer Churn Prediction API")
 
-# ===============================
-# LOAD MODEL ON STARTUP
-# ===============================
-@app.on_event("startup")
-def load_model():
-    global model, preprocessor
-
-    # Load model from MLflow
-    model = mlflow.sklearn.load_model(MODEL_URI)
-
-    # Download preprocessor artifact
-    client = MlflowClient()
-    client.download_artifacts(RUN_ID, "preprocessor.pkl", ".")
-
-    with open("preprocessor.pkl", "rb") as f:
-        preprocessor = pickle.load(f)
-
-    print("✅ Model and preprocessor loaded successfully")
-
-
-# ===============================
-# INPUT SCHEMA
-# ===============================
-class ChurnInput(BaseModel):
-    tenure: int
-    MonthlyCharges: float
-    TotalCharges: float
-    Contract: str
-    InternetService: str
+# Define input schema
+class CustomerData(BaseModel):
+    gender: str
+    senior_citizen: int
+    partner: str
+    dependents: str
+    phone_service: str
+    multiple_lines: str
+    internet_service: str
+    online_security: str
+    online_backup: str
+    device_protection: str
+    tech_support: str
+    streaming_tv: str
+    streaming_movies: str
+    contract: str
+    paperless_billing: str
+    payment_method: str
+    monthly_charges: float
+    total_charges: float
+    tenure_group: int
 
 
-# ===============================
-# HEALTH CHECK
-# ===============================
 @app.get("/")
 def health_check():
     return {"status": "API is running"}
 
-
-# ===============================
-# PREDICTION ENDPOINT
-# ===============================
 @app.post("/predict")
-def predict_churn(data: ChurnInput):
-
-    input_df = pd.DataFrame([data.dict()])
-
-    # Preprocess
-    X_processed = preprocessor.transform(input_df)
-
-    # Predict
-    prediction = model.predict(X_processed)[0]
-    probability = model.predict_proba(X_processed)[0][1]
+def predict_churn(data: CustomerData):
+    df = pd.DataFrame([data.dict()])
+    X = preprocessor.transform(df)
+    prob = model.predict_proba(X)[0][1]
 
     return {
-        "churn_prediction": int(prediction),
-        "churn_probability": round(probability, 3),
-        "note": "Recall-optimized model (focus on minimizing false negatives)"
+        "churn_probability": round(float(prob), 3),
+        "churn_prediction": int(prob > 0.5)
     }
