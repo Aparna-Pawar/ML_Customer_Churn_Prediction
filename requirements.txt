@@ -10,3 +10,4 @@ streamlit
 mlflow
 boto3
 fastapi
+beautifulsoup
